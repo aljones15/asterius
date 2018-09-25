@@ -142,8 +142,8 @@ genSymbolDict sym_map =
        ]) <>
   "}"
 
-genNode :: Task -> LinkReport -> IO Builder
-genNode Task {..} LinkReport {..} = do
+genNode :: Task -> LinkReport -> [ErrorMessage] -> IO Builder
+genNode Task {..} LinkReport {..} err_msgs = do
   rts_buf <- BS.readFile $ dataDir </> "rts" </> "rts.js"
   pure $
     mconcat $
@@ -152,7 +152,9 @@ genNode Task {..} LinkReport {..} = do
     , "async function main() {\n"
     , "const i = await newAsteriusInstance({functionSymbols: "
     , string7 $ show $ map fst $ sortOn snd $ M.toList functionSymbolMap
-    , ", bufferSource: "
+    , ", errorMessages: ["
+    , mconcat (intersperse "," [string7 $ show msg | msg <- err_msgs])
+    , "], bufferSource: "
     ] <>
     (case target of
        Node ->
@@ -256,16 +258,16 @@ main = do
     mod_ir_map
   final_store <- readIORef final_store_ref
   putStrLn "[INFO] Attempting to link into a standalone WebAssembly module"
-  let (!m_final_m, !report) =
-        linkStart
-          debug
-          final_store
-          (S.fromList $
-           extraRootSymbols <>
-           [ AsteriusEntitySymbol {entityName = internalName}
-           | FunctionExport {..} <- rtsAsteriusFunctionExports debug
-           ])
-          exportFunctions
+  (!m_final_m, !report) <-
+    linkStart
+      debug
+      final_store
+      (S.fromList $
+       extraRootSymbols <>
+       [ AsteriusEntitySymbol {entityName = internalName}
+       | FunctionExport {..} <- rtsAsteriusFunctionExports debug
+       ])
+      exportFunctions
   maybe
     (pure ())
     (\p -> do
@@ -281,7 +283,7 @@ main = do
     outputGraphViz
   maybe
     (fail "[ERROR] Linking failed")
-    (\final_m -> do
+    (\(final_m, err_msgs) -> do
        when outputIR $ do
          let p = input -<.> "txt"
          putStrLn $ "[INFO] Writing linked IR to " <> show p
@@ -300,7 +302,7 @@ main = do
        BS.writeFile outputWasm m_bin
        putStrLn $ "[INFO] Writing JavaScript to " <> show outputJS
        h <- openBinaryFile outputJS WriteMode
-       b <- genNode task report
+       b <- genNode task report err_msgs
        hPutBuilder h b
        hClose h
        when (target == Node && run) $ do

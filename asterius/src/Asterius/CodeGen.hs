@@ -252,8 +252,14 @@ marshalCmmReg r =
       gr_k <- marshalCmmGlobalReg gr
       pure
         ( case gr_k of
-            GCEnter1 -> marshalErrorCode errGCEnter1 I64
-            GCFun -> marshalErrorCode errGCFun I64
+            GCEnter1 ->
+              emitErrorMessage
+                I64
+                "GetGlobal instruction: attempting to read GCEnter1"
+            GCFun ->
+              emitErrorMessage
+                I64
+                "GetGlobal instruction: attempting to read GCFun"
             _ -> UnresolvedGetGlobal {unresolvedGlobalReg = gr_k}
         , unresolvedGlobalRegType gr_k)
 
@@ -804,7 +810,7 @@ marshalCmmUnsafeCall ::
 marshalCmmUnsafeCall p@(GHC.CmmLit (GHC.CmmLabel clbl)) f rs xs = do
   sym <- marshalCLabel clbl
   if entityName sym == "barf"
-    then pure [marshalErrorCode errBarf None]
+    then pure [emitErrorMessage None "barf() is invoked"]
     else do
       xes <-
         for xs $ \x -> do
@@ -998,7 +1004,12 @@ marshalCmmProc GHC.CmmGraph {g_graph = GHC.GMany _ body _, ..} = do
         ( "__asterius_unreachable"
         , RelooperBlock
             { addBlock =
-                AddBlock {code = marshalErrorCode errUnreachableBlock None}
+                AddBlock
+                  { code =
+                      emitErrorMessage
+                        None
+                        "__asterius_unreachable block is entered"
+                  }
             , addBranches = []
             }) :
         rbs

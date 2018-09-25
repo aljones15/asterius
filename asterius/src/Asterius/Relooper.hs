@@ -11,7 +11,7 @@ module Asterius.Relooper
 
 import Asterius.Internals
 import Asterius.Types
-import Data.Data (Data, gmapT)
+import Data.Data (Data, gmapM)
 import Data.List
 import qualified Data.Map.Strict as M
 import Data.String
@@ -103,13 +103,13 @@ relooper RelooperRun {..} = result_expr
         , valueType = None
         }
 
-relooperDeep :: Data a => a -> a
+relooperDeep :: (Monad m, Data a) => a -> m a
 relooperDeep t =
   case eqTypeRep (typeOf t) (typeRep :: TypeRep Expression) of
     Just HRefl ->
       case t of
-        CFG {..} -> relooper graph
+        CFG {..} -> pure $ relooper graph
         _ -> go
     _ -> go
   where
-    go = gmapT relooperDeep t
+    go = gmapM relooperDeep t

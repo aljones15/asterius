@@ -22,6 +22,7 @@ module Asterius.Types
   , AsteriusStore(..)
   , UnresolvedLocalReg(..)
   , UnresolvedGlobalReg(..)
+  , ErrorMessage(..)
   , ValueType(..)
   , FunctionType(..)
   , UnaryOp(..)
@@ -197,6 +198,14 @@ data UnresolvedGlobalReg
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Binary UnresolvedGlobalReg
+
+newtype ErrorMessage = ErrorMessage
+  { unErrorMessage :: SBS.ShortByteString
+  } deriving (Eq, Ord, Generic, Data)
+
+deriving newtype instance Show ErrorMessage
+
+instance Binary ErrorMessage
 
 data ValueType
   = None
@@ -451,6 +460,8 @@ data Expression
   | UnresolvedGetGlobal { unresolvedGlobalReg :: UnresolvedGlobalReg }
   | UnresolvedSetGlobal { unresolvedGlobalReg :: UnresolvedGlobalReg
                         , value :: Expression }
+  | EmitErrorMessage { errorMessage :: ErrorMessage
+                     , valueType :: ValueType }
   | Null
   deriving (Show, Generic, Data)
 
@@ -466,28 +477,28 @@ instance Binary Function
 
 data FunctionImport = FunctionImport
   { internalName, externalModuleName, externalBaseName, functionTypeName :: SBS.ShortByteString
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data TableImport = TableImport
   { internalName, externalModuleName, externalBaseName :: SBS.ShortByteString
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data GlobalImport = GlobalImport
   { internalName, externalModuleName, externalBaseName :: SBS.ShortByteString
   , globalType :: ValueType
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data FunctionExport = FunctionExport
   { internalName, externalName :: SBS.ShortByteString
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data TableExport = TableExport
   { internalName, externalName :: SBS.ShortByteString
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data GlobalExport = GlobalExport
   { internalName, externalName :: SBS.ShortByteString
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data Global = Global
   { valueType :: ValueType
@@ -497,18 +508,18 @@ data Global = Global
 
 newtype FunctionTable = FunctionTable
   { functionNames :: [SBS.ShortByteString]
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data DataSegment = DataSegment
   { content :: SBS.ShortByteString
   , offset :: Expression
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data Memory = Memory
   { initialPages, maximumPages :: BinaryenIndex
   , exportName :: SBS.ShortByteString
   , dataSegments :: [DataSegment]
-  } deriving (Show)
+  } deriving (Show, Data)
 
 data Module = Module
   { functionTypeMap :: M.Map SBS.ShortByteString FunctionType
@@ -523,7 +534,7 @@ data Module = Module
   , functionTable :: Maybe FunctionTable
   , memory :: Maybe Memory
   , startFunctionName :: Maybe SBS.ShortByteString
-  } deriving (Show)
+  } deriving (Show, Data)
 
 emptyModule :: Module
 emptyModule =

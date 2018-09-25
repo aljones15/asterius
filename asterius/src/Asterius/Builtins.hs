@@ -12,15 +12,7 @@ module Asterius.Builtins
   , rtsAsteriusModule
   , rtsAsteriusFunctionImports
   , rtsAsteriusFunctionExports
-  , marshalErrorCode
-  , errGCEnter1
-  , errGCFun
-  , errBarf
-  , errUnreachableBlock
-  , errUnimplemented
-  , errAtomics
-  , errSetBaseReg
-  , errBrokenFunction
+  , emitErrorMessage
   , wasmPageSize
   , cutI64
   , generateWasmFunctionTypeName
@@ -37,7 +29,7 @@ import qualified Data.ByteString.Short as SBS
 import Data.Foldable
 import Data.List
 import Data.Maybe
-import Foreign (Int32, Word64, Word8)
+import Foreign (Word64, Word8)
 import qualified GHC
 import qualified GhcPlugins as GHC
 import Language.Haskell.GHC.Toolkit.Constants
@@ -467,55 +459,18 @@ rtsAsteriusFunctionExports debug =
       ["hs_init", "main"]
   ]
 
-{-# INLINEABLE marshalErrorCode #-}
-marshalErrorCode :: Int32 -> ValueType -> Expression
-marshalErrorCode err vt =
-  Block
-    { name = ""
-    , bodys =
-        [ CallImport
-            { target' = "__asterius_errorI32"
-            , operands = [ConstI32 err]
-            , valueType = None
-            }
-        , Unreachable
-        ]
-    , valueType = vt
-    }
-
-errGCEnter1, errGCFun, errBarf, errUnreachableBlock, errHeapOverflow, errUnimplemented, errAtomics, errSetBaseReg, errBrokenFunction, errAssert, errSchedulerReenteredFromHaskell, errIllegalSchedState, errIllegalPrevWhatNext, errIllegalThreadReturnCode ::
-     Int32
-errGCEnter1 = 1
-
-errGCFun = 2
-
-errBarf = 3
-
-errUnreachableBlock = 5
-
-errHeapOverflow = 6
-
-errUnimplemented = 8
-
-errAtomics = 9
-
-errSetBaseReg = 10
-
-errBrokenFunction = 11
-
-errAssert = 12
-
-errSchedulerReenteredFromHaskell = 13
-
-errIllegalSchedState = 14
-
-errIllegalPrevWhatNext = 15
-
-errIllegalThreadReturnCode = 16
+emitErrorMessage :: ValueType -> SBS.ShortByteString -> Expression
+emitErrorMessage vt msg =
+  EmitErrorMessage
+    {errorMessage = ErrorMessage {unErrorMessage = msg}, valueType = vt}
 
 assert :: BuiltinsOptions -> Expression -> EDSL ()
 assert BuiltinsOptions {..} cond =
-  when tracing $ if' cond mempty $ emit $ marshalErrorCode errAssert None
+  when tracing $
+  if' cond mempty $
+  emit $
+  emitErrorMessage None $
+  "Assertion failure, condition expression: " <> showSBS cond
 
 generateWrapperFunction ::
      AsteriusEntitySymbol -> AsteriusFunction -> AsteriusFunction
@@ -687,7 +642,10 @@ rtsCheckSchedStatusFunction _ =
     cap <- param I64
     stat <- call' "rts_getSchedStatus" [cap] I32
     if' (stat `eqInt32` constI32 scheduler_Success) mempty $
-      emit $ marshalErrorCode errIllegalSchedState None
+      emit $
+      emitErrorMessage
+        None
+        "rts_checkSchedStatus failed: illegal scheduler status code"
 
 appendToRunQueue :: BuiltinsOptions -> Expression -> Expression -> EDSL ()
 appendToRunQueue opts cap tso = do
@@ -732,7 +690,8 @@ emptyRunQueue :: Expression -> Expression
 emptyRunQueue cap = eqZInt32 $ loadI32 cap offset_Capability_n_run_queue
 
 scheduleDoGC :: Expression -> Expression -> Expression -> EDSL ()
-scheduleDoGC _ _ _ = emit $ marshalErrorCode errUnimplemented None
+scheduleDoGC _ _ _ =
+  emit $ emitErrorMessage None "scheduleDoGC failed: unimplemented"
 
 popRunQueue :: BuiltinsOptions -> Expression -> EDSL Expression
 popRunQueue opts cap = do
@@ -756,7 +715,8 @@ popRunQueue opts cap = do
   pure t
 
 deleteThread :: Expression -> EDSL ()
-deleteThread _ = emit $ marshalErrorCode errUnimplemented None
+deleteThread _ =
+  emit $ emitErrorMessage None "deleteThread failed: unimplemented"
 
 dirtyTSO :: Expression -> Expression -> EDSL ()
 dirtyTSO _ tso =
@@ -774,12 +734,13 @@ dirtySTACK _ stack =
 
 scheduleHandleHeapOverflow :: Expression -> Expression -> EDSL Expression
 scheduleHandleHeapOverflow _ _ =
-  pure $ marshalErrorCode errIllegalThreadReturnCode None
+  pure $
+  emitErrorMessage None "scheduleHandleHeapOverflow failed: unimplemented"
 
 threadStackOverflowFunction _ =
   runEDSL $ do
     _ <- params [I64, I64]
-    emit $ marshalErrorCode errIllegalThreadReturnCode None
+    emit $ emitErrorMessage None "threadStackOverflow failed: unimplemented"
 
 pushOnRunQueueFunction _ =
   runEDSL $ do
@@ -803,11 +764,11 @@ pushOnRunQueueFunction _ =
 
 scheduleHandleYield :: Expression -> Expression -> Expression -> EDSL Expression
 scheduleHandleYield _ _ _ =
-  pure $ marshalErrorCode errIllegalThreadReturnCode None
+  pure $ emitErrorMessage None "scheduleHandleYield failed: unimplemented"
 
 scheduleHandleThreadBlocked :: Expression -> EDSL ()
 scheduleHandleThreadBlocked _ =
-  emit $ marshalErrorCode errIllegalThreadReturnCode None
+  emit $ emitErrorMessage None "scheduleHandleThreadBlock failed: unimplemented"
 
 scheduleHandleThreadFinished ::
      BuiltinsOptions
@@ -899,7 +860,10 @@ schedule opts cap task = do
     loop' $ \sched_loop_lbl -> do
       if'
         (loadI8 cap offset_Capability_in_haskell)
-        (emit (marshalErrorCode errSchedulerReenteredFromHaskell None))
+        (emit
+           (emitErrorMessage
+              None
+              "schedule failed: scheduler reentered from Haskell"))
         mempty
       switchI64 (loadI64 (symbol "sched_state") 0) $ \brake ->
         ( [ (sched_SCHED_RUNNING, brake)
@@ -914,7 +878,7 @@ schedule opts cap task = do
                 (break' sched_block_lbl Null)
                 brake)
           ]
-        , emit $ marshalErrorCode errIllegalSchedState None)
+        , emit $ emitErrorMessage None "schedule failed: illegal sched_state")
       if'
         (emptyRunQueue cap)
         (assert opts $
@@ -978,7 +942,8 @@ schedule opts cap task = do
                    putLVal ret $ wrapInt64 $ loadI64 r offset_StgRegTable_rRet
                    brake)
             ]
-          , emit $ marshalErrorCode errIllegalPrevWhatNext None)
+          , emit $
+            emitErrorMessage None "schedule failed: errIllegalPrevWhatNext")
         storeI8 cap offset_Capability_in_haskell $ constI32 0
         putLVal t $
           loadI64 cap (offset_Capability_r + offset_StgRegTable_rCurrentTSO)
@@ -1007,7 +972,8 @@ schedule opts cap task = do
                      break' sched_block_lbl
                    brake)
             ]
-          , emit $ marshalErrorCode errIllegalThreadReturnCode None)
+          , emit $
+            emitErrorMessage None "schedule failed: errIllegalThreadReturnCode")
         need_heap_profile <- scheduleNeedHeapProfile (getLVal ready_to_gc)
         if'
           (getLVal ready_to_gc `orInt32` need_heap_profile)
@@ -1129,7 +1095,7 @@ allocateFunction _ =
     new_hp <- i64Local $ getLVal hp `addInt64` (n `mulInt64` constI64 8)
     if'
       (new_hp `gtUInt64` getLVal hpLim)
-      (emit $ marshalErrorCode errHeapOverflow None)
+      (emit $ emitErrorMessage None "allocate failed: errHeapOverflow")
       mempty
     old_hp <- i64Local $ getLVal hp
     putLVal hp new_hp
@@ -1205,7 +1171,7 @@ allocMegaGroup node mblocks = do
 freeFunction _ =
   runEDSL $ do
     _ <- param I64
-    emit $ marshalErrorCode errUnimplemented None
+    emit $ emitErrorMessage None "free failed: unimplemented"
 
 newCAFFunction _ =
   runEDSL $ do
