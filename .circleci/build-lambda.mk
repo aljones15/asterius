@@ -1,0 +1,13 @@
+WITH_TERMINFO             = NO
+DYNAMIC_BY_DEFAULT        = NO
+DYNAMIC_GHC_PROGRAMS      = NO
+SRC_HC_OPTS               = -O -H64m
+GhcStage1HcOpts           = -O
+GhcStage2HcOpts           = -O2
+GhcLibHcOpts              = -O2
+BUILD_PROF_LIBS           = NO
+SplitObjs                 = NO
+SplitSections             = YES
+BUILD_SPHINX_HTML         = NO
+BUILD_SPHINX_PDF          = NO
+HADDOCK_DOCS              = NO

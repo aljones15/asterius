@@ -1,0 +1,190 @@
+version: 2
+
+jobs:
+  vanilla:
+    resource_class: xlarge
+    docker:
+      - image: debian:unstable
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+      GHC_BRANCH: asterius
+      JOBS: 9
+      XZ_OPT: -9
+    steps:
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt dist-upgrade -y
+            apt install -y \
+              automake \
+              build-essential \
+              curl \
+              git \
+              libffi-dev \
+              libgmp-dev \
+              libncurses-dev \
+              libnuma-dev \
+              libtool-bin \
+              pkg-config \
+              python3-sphinx \
+              xz-utils \
+              zlib1g-dev
+            mkdir -p ~/.local/bin
+            curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+            ~/.local/bin/stack --no-terminal --resolver lts install \
+              alex \
+              happy \
+              hscolour
+      - run:
+          name: Initialize ghc repo
+          command: |
+            git config --global url."https://github.com/ghc/packages-".insteadOf https://github.com/TerrorJack/packages/
+            git config --global url."https://github.com/ghc/haddock.git".insteadOf https://github.com/TerrorJack/haddock.git
+            git config --global url."https://github.com/ghc/nofib.git".insteadOf https://github.com/TerrorJack/nofib.git
+            git config --global url."https://github.com/ghc/hsc2hs.git".insteadOf https://github.com/TerrorJack/hsc2hs.git
+            git config --global url."https://github.com/ghc/libffi-tarballs.git".insteadOf https://github.com/TerrorJack/libffi-tarballs.git
+            git config --global url."https://github.com/ghc/gmp-tarballs.git".insteadOf https://github.com/TerrorJack/gmp-tarballs.git
+            git config --global url."https://github.com/ghc/arcanist-external-json-linter.git".insteadOf https://github.com/TerrorJack/arcanist-external-json-linter.git
+            git config --global url."https://github.com/ghc/hadrian.git".insteadOf https://github.com/TerrorJack/hadrian.git
+            cd /tmp
+            git clone https://github.com/TerrorJack/ghc.git
+            cd ghc
+            git checkout $GHC_BRANCH
+            git submodule update --init --recursive
+      - checkout
+      - run:
+          name: Compile GHC
+          no_output_timeout: 1h
+          command: |
+            export PATH=~/.local/bin:$(~/.local/bin/stack path --compiler-bin):/usr/share/sphinx/scripts/python3:$PATH
+            mv .circleci/build.mk /tmp/ghc/mk/
+            cd /tmp/ghc
+            ./boot
+            ./configure
+            make -j$JOBS
+            make binary-dist
+            mkdir /tmp/ghc-bindist
+            mv *.tar.* /tmp/ghc-bindist/
+            sha256sum -b /tmp/ghc-bindist/* > /tmp/ghc-bindist/sha256.txt
+      - store_artifacts:
+          path: /tmp/ghc-bindist
+
+  macos:
+    macos:
+      xcode: "10.0.0"
+    environment:
+      GHC_BRANCH: asterius
+      JOBS: 4
+      XZ_OPT: -9
+    steps:
+      - run:
+          name: Install dependencies
+          command: |
+            brew update
+            brew upgrade
+            brew install \
+              cabal-install \
+              coreutils \
+              sphinx-doc
+            cabal v1-update
+            cabal v1-install \
+              alex \
+              happy \
+              hscolour
+      - run:
+          name: Initialize ghc repo
+          command: |
+            git config --global url."https://github.com/ghc/packages-".insteadOf https://github.com/TerrorJack/packages/
+            git config --global url."https://github.com/ghc/haddock.git".insteadOf https://github.com/TerrorJack/haddock.git
+            git config --global url."https://github.com/ghc/nofib.git".insteadOf https://github.com/TerrorJack/nofib.git
+            git config --global url."https://github.com/ghc/hsc2hs.git".insteadOf https://github.com/TerrorJack/hsc2hs.git
+            git config --global url."https://github.com/ghc/libffi-tarballs.git".insteadOf https://github.com/TerrorJack/libffi-tarballs.git
+            git config --global url."https://github.com/ghc/gmp-tarballs.git".insteadOf https://github.com/TerrorJack/gmp-tarballs.git
+            git config --global url."https://github.com/ghc/arcanist-external-json-linter.git".insteadOf https://github.com/TerrorJack/arcanist-external-json-linter.git
+            git config --global url."https://github.com/ghc/hadrian.git".insteadOf https://github.com/TerrorJack/hadrian.git
+            cd /tmp
+            git clone https://github.com/TerrorJack/ghc.git
+            cd ghc
+            git checkout $GHC_BRANCH
+            git submodule update --init --recursive
+      - checkout
+      - run:
+          name: Compile GHC
+          no_output_timeout: 1h
+          command: |
+            export PATH=~/.cabal/bin:/usr/local/opt/coreutils/libexec/gnubin:/usr/local/opt/sphinx-doc/bin:$PATH
+            mv .circleci/build-macos.mk /tmp/ghc/mk/
+            cd /tmp/ghc
+            ./boot
+            ./configure
+            make -j$JOBS
+            make binary-dist
+            mkdir /tmp/ghc-bindist
+            mv *.tar.* /tmp/ghc-bindist/
+            sha256sum -b /tmp/ghc-bindist/* > /tmp/ghc-bindist/sha256.txt
+      - store_artifacts:
+          path: /tmp/ghc-bindist
+
+  lambda:
+    resource_class: xlarge
+    docker:
+      - image: lambci/lambda:build-nodejs8.10
+    environment:
+      GHC_BRANCH: asterius
+      JOBS: 9
+      XZ_OPT: -9
+    steps:
+      - run:
+          name: Install dependencies
+          command: |
+            yum -y install \
+              libatomic_ops-devel \
+              ncurses-devel
+            mkdir -p ~/.local/bin
+            export PATH=~/.local/bin:$PATH
+            curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+            stack --no-terminal --resolver lts install \
+              alex \
+              happy
+      - run:
+          name: Initialize ghc repo
+          command: |
+            git config --global url."https://github.com/ghc/packages-".insteadOf https://github.com/TerrorJack/packages/
+            git config --global url."https://github.com/ghc/haddock.git".insteadOf https://github.com/TerrorJack/haddock.git
+            git config --global url."https://github.com/ghc/nofib.git".insteadOf https://github.com/TerrorJack/nofib.git
+            git config --global url."https://github.com/ghc/hsc2hs.git".insteadOf https://github.com/TerrorJack/hsc2hs.git
+            git config --global url."https://github.com/ghc/libffi-tarballs.git".insteadOf https://github.com/TerrorJack/libffi-tarballs.git
+            git config --global url."https://github.com/ghc/gmp-tarballs.git".insteadOf https://github.com/TerrorJack/gmp-tarballs.git
+            git config --global url."https://github.com/ghc/arcanist-external-json-linter.git".insteadOf https://github.com/TerrorJack/arcanist-external-json-linter.git
+            git config --global url."https://github.com/ghc/hadrian.git".insteadOf https://github.com/TerrorJack/hadrian.git
+            mkdir /tmp/ghc-git
+            cd /tmp/ghc-git
+            git clone https://github.com/TerrorJack/ghc.git
+            cd ghc
+            git checkout $GHC_BRANCH
+            git submodule update --init --recursive
+      - checkout
+      - run:
+          name: Compile GHC
+          no_output_timeout: 1h
+          command: |
+            export PATH=~/.local/bin:$(~/.local/bin/stack path --compiler-bin):$PATH
+            cp .circleci/build-lambda.mk /tmp/ghc-git/ghc/mk/build.mk
+            cd /tmp/ghc-git/ghc
+            ./boot
+            ./configure --prefix=/tmp/ghc
+            make -j$JOBS
+            make install
+            cd /tmp
+            tar cfJ ghc.tar.xz ghc
+      - store_artifacts:
+          path: /tmp/ghc.tar.xz
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - vanilla
+      - macos
+      - lambda
