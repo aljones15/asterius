@@ -14,15 +14,36 @@ async function newAsteriusInstance(req) {
         .padStart(8, "0")
     );
   }
-  const __asterius_statics_lookup_table = (() => {
+  function __asterius_make_symbol_lookup_table(sym_map) {
     let tbl = {};
-    for (const [k, v] of Object.entries(req.staticsSymbolMap)) tbl[v] = k;
+    for (const [k, v] of Object.entries(sym_map)) tbl[v] = k;
     return tbl;
-  })();
+  }
+  const __asterius_statics_lookup_table = __asterius_make_symbol_lookup_table(
+      req.staticsSymbolMap
+    ),
+    __asterius_function_lookup_table = __asterius_make_symbol_lookup_table(
+      req.functionSymbolMap
+    );
   function __asterius_show_I64_with_sym(lo, hi) {
-    const x = lo + (hi << 32),
-      sym = __asterius_statics_lookup_table[x];
-    return __asterius_show_I64(lo, hi) + (sym ? "(" + sym + ")" : "");
+    switch (hi) {
+      case 2097143:
+        return (
+          __asterius_show_I64(lo, hi) +
+          (__asterius_statics_lookup_table[lo]
+            ? "(" + __asterius_statics_lookup_table[lo] + ")"
+            : "")
+        );
+      case 2097133:
+        return (
+          __asterius_show_I64(lo, hi) +
+          (__asterius_function_lookup_table[lo]
+            ? "(" + __asterius_function_lookup_table[lo] + ")"
+            : "")
+        );
+      default:
+        return __asterius_show_I64(lo, hi);
+    }
   }
   const __asterius_jsffi_JSRefs = [undefined];
   function __asterius_jsffi_newJSRef(e) {
