@@ -16,7 +16,7 @@ async function newAsteriusInstance(req) {
   }
   function __asterius_make_symbol_lookup_table(sym_map) {
     let tbl = {};
-    for (const [k, v] of Object.entries(sym_map)) tbl[v] = k;
+    for (const [k, v] of Object.entries(sym_map)) tbl[v & 0xffffffff] = k;
     return tbl;
   }
   const __asterius_statics_lookup_table = __asterius_make_symbol_lookup_table(
@@ -89,6 +89,8 @@ async function newAsteriusInstance(req) {
         deRefStablePtr: __asterius_deRefStablePtr,
         freeStablePtr: __asterius_freeStablePtr,
         printI64: (lo, hi) => console.log(__asterius_show_I64(lo, hi)),
+        printI64_with_sym: (lo, hi) =>
+          console.log("[INFO] " + __asterius_show_I64_with_sym(lo, hi)),
         print: console.log,
         panic: e => console.error("[ERROR] " + req.errorMessages[e]),
         __asterius_current_memory: p => {

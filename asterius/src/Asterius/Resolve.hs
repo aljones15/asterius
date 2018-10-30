@@ -329,22 +329,36 @@ mergeSymbols debug AsteriusStore {..} root_syms export_funcs = do
       pure (o_staging_syms, o_rep, o_m)
 
 makeFunctionTable ::
-     AsteriusModule -> (FunctionTable, M.Map AsteriusEntitySymbol Int64)
-makeFunctionTable AsteriusModule {..} =
+     Bool -> AsteriusModule -> (FunctionTable, M.Map AsteriusEntitySymbol Int64)
+makeFunctionTable debug AsteriusModule {..} =
   ( FunctionTable {functionNames = map entityName func_syms}
-  , fromList $ zip func_syms [1 ..])
+  , fromList $
+    zip
+      func_syms
+      [1 .|.
+       if debug
+         then functionTag `shiftL` 32
+         else 0 ..])
   where
     func_syms = M.keys functionMap
 
 makeStaticsOffsetTable ::
-     AsteriusModule -> (Int64, M.Map AsteriusEntitySymbol Int64)
-makeStaticsOffsetTable AsteriusModule {..} = (last_o, M.fromList statics_map)
+     Bool -> AsteriusModule -> (Int64, M.Map AsteriusEntitySymbol Int64)
+makeStaticsOffsetTable debug AsteriusModule {..} =
+  (last_o .&. 0xFFFFFFFF, M.fromList statics_map)
   where
     (last_o, statics_map) =
       layoutStatics $
       sortOn (\(k, AsteriusStatics {..}) -> (not isConstant, k)) $
       M.toList staticsMap
-    layoutStatics = foldl' iterLayoutStaticsState (16, [])
+    layoutStatics =
+      foldl'
+        iterLayoutStaticsState
+        ( 16 .|.
+          if debug
+            then staticsTag `shiftL` 32
+            else 0
+        , [])
     iterLayoutStaticsState (ptr, sym_map) (ss_sym, ss) =
       ( fromIntegral $ roundup (fromIntegral ptr + asteriusStaticsSize ss) 16
       , (ss_sym, ptr) : sym_map)
@@ -375,7 +389,10 @@ makeMemory debug AsteriusModule {..} last_o sym_map =
            ( p + fromIntegral (asteriusStaticSize s)
            , case s of
                Serialized buf ->
-                 DataSegment {content = buf, offset = ConstI32 $ fromIntegral p} :
+                 DataSegment
+                   { content = buf
+                   , offset = ConstI32 $ fromIntegral $ p .&. 0xFFFFFFFF
+                   } :
                  segs
                _ -> segs))
         (sym_map ! ss_sym, [])
@@ -401,21 +418,12 @@ makeMemory debug AsteriusModule {..} last_o sym_map =
 
 resolveEntitySymbols ::
      (Monad m, Data a)
-  => Bool
-  -> M.Map AsteriusEntitySymbol Int64
+  => M.Map AsteriusEntitySymbol Int64
   -> M.Map AsteriusEntitySymbol Int64
   -> a
   -> m a
-resolveEntitySymbols debug ss_sym_map func_sym_map = f
+resolveEntitySymbols ss_sym_map func_sym_map = f
   where
-    decorate_ss_sym r =
-      if debug
-        then (staticsTag `shiftL` 32) .|. r
-        else r
-    decorate_func_sym r =
-      if debug
-        then (functionTag `shiftL` 32) .|. r
-        else r
     f :: (Monad m, Data a) => a -> m a
     f t =
       case eqTypeRep (typeOf t) (typeRep :: TypeRep Expression) of
@@ -425,8 +433,8 @@ resolveEntitySymbols debug ss_sym_map func_sym_map = f
               pure $
               case ( M.lookup unresolvedSymbol ss_sym_map
                    , M.lookup unresolvedSymbol func_sym_map) of
-                (Just r, _) -> t {resolvedSymbol = Just $ decorate_ss_sym r}
-                (_, Just r) -> t {resolvedSymbol = Just $ decorate_func_sym r}
+                (Just r, _) -> t {resolvedSymbol = Just r}
+                (_, Just r) -> t {resolvedSymbol = Just r}
                 _ ->
                   EmitErrorMessage
                     { errorMessage =
@@ -445,12 +453,10 @@ resolveEntitySymbols debug ss_sym_map func_sym_map = f
                        , M.lookup unresolvedSymbol func_sym_map) of
                     (Just r, _) ->
                       Serialized
-                        (encodeStorable
-                           (decorate_ss_sym $ r + fromIntegral symbolOffset))
+                        (encodeStorable (r + fromIntegral symbolOffset))
                     (_, Just r) ->
                       Serialized
-                        (encodeStorable
-                           (decorate_func_sym $ r + fromIntegral symbolOffset))
+                        (encodeStorable (r + fromIntegral symbolOffset))
                     _ -> t
                 _ -> pure t
             _ -> go
@@ -503,10 +509,10 @@ resolveAsteriusModule ::
        , M.Map AsteriusEntitySymbol Int64
        , [ErrorMessage])
 resolveAsteriusModule debug bundled_ffi_state export_funcs m_globals_resolved = do
-  let (func_table, func_sym_map) = makeFunctionTable m_globals_resolved
-      (last_o, ss_sym_map) = makeStaticsOffsetTable m_globals_resolved
+  let (func_table, func_sym_map) = makeFunctionTable debug m_globals_resolved
+      (last_o, ss_sym_map) = makeStaticsOffsetTable debug m_globals_resolved
       resolve_syms :: (Monad m, Data a) => a -> m a
-      resolve_syms = resolveEntitySymbols debug ss_sym_map func_sym_map
+      resolve_syms = resolveEntitySymbols ss_sym_map func_sym_map
   m_globals_syms_resolved <- resolve_syms m_globals_resolved
   let func_imports =
         rtsFunctionImports debug <> generateFFIFunctionImports bundled_ffi_state

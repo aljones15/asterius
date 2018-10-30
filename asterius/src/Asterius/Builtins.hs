@@ -21,8 +21,10 @@ module Asterius.Builtins
 import Asterius.BuildInfo
 import Asterius.EDSL
 import Asterius.Internals
+import Asterius.Internals.MagicNumber
 import Asterius.Types
 import Control.Monad (when)
+import Data.Bits
 import qualified Data.ByteString.Short as SBS
 import Data.Foldable
 import Data.List
@@ -290,6 +292,12 @@ rtsFunctionImports debug =
       , functionType = FunctionType {paramTypes = [I32, I32], returnTypes = []}
       }
   , FunctionImport
+      { internalName = "printI64_with_sym"
+      , externalModuleName = "rts"
+      , externalBaseName = "printI64_with_sym"
+      , functionType = FunctionType {paramTypes = [I32, I32], returnTypes = []}
+      }
+  , FunctionImport
       { internalName = "printF32"
       , externalModuleName = "rts"
       , externalBaseName = "print"
@@ -479,13 +487,13 @@ generateWrapperFunction func_sym AsteriusFunction { functionType = FunctionType 
   where
     wrapper_param_types =
       [ case param_type of
-        I64 -> (i, I32, extendUInt32)
+        I64 -> (i, F64, Unary TruncUFloat64ToInt64)
         _ -> (i, param_type, id)
       | (i, param_type) <- zip [0 ..] paramTypes
       ]
     (wrapper_return_types, to_wrapper_return_types) =
       case returnTypes of
-        [I64] -> ([I32], wrapInt64)
+        [I64] -> ([F64], Unary ConvertUInt64ToFloat64)
         _ -> (returnTypes, id)
 
 mainFunction, hsInitFunction, rtsApplyFunction, rtsEvalFunction, rtsEvalIOFunction, rtsEvalLazyIOFunction, rtsEvalStableIOFunction, rtsGetSchedStatusFunction, rtsCheckSchedStatusFunction, setTSOLinkFunction, setTSOPrevFunction, threadStackOverflowFunction, pushOnRunQueueFunction, scheduleWaitThreadFunction, createThreadFunction, createGenThreadFunction, createIOThreadFunction, createStrictIOThreadFunction, mallocFunction, memcpyFunction, allocateFunction, allocGroupOnNodeFunction, getMBlocksFunction, freeFunction, newCAFFunction, stgRunFunction, stgReturnFunction, getStablePtrWrapperFunction, deRefStablePtrWrapperFunction, freeStablePtrWrapperFunction, rtsMkBoolFunction, rtsMkDoubleFunction, rtsMkCharFunction, rtsMkIntFunction, rtsMkWordFunction, rtsMkPtrFunction, rtsMkStablePtrFunction, rtsGetBoolFunction, rtsGetDoubleFunction, rtsGetCharFunction, rtsGetIntFunction, loadI64Function, printI64Function, printF32Function, printF64Function ::
@@ -1131,7 +1139,7 @@ allocGroupOnNodeFunction _ =
     initGroup bd
     emit bd
 
-getMBlocksFunction _ =
+getMBlocksFunction BuiltinsOptions {..} =
   runEDSL [I64] $ do
     setReturnTypes [I64]
     n <- param I32
@@ -1140,7 +1148,10 @@ getMBlocksFunction _ =
       extendUInt32 $
       growMemory (n `mulInt32` constI32 (mblock_size `div` wasmPageSize)) `mulInt32`
       constI32 wasmPageSize
-    emit ret
+    emit $
+      if tracing
+        then ConstI64 (staticsTag `shiftL` 32) `orInt64` ret
+        else ret
 
 mblockGroupBlocks :: Expression -> Expression
 mblockGroupBlocks n =
