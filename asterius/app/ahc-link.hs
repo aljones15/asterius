@@ -8,12 +8,13 @@ import System.FilePath
 
 parseTask :: Parser Task
 parseTask =
-  (\t i m_wasm m_node m_report m_gv wasm_toolkit dbg ir r m_hs m_with_i ghc_flags export_funcs root_syms ->
+  (\t i m_wasm m_js m_html m_report m_gv wasm_toolkit dbg ir r m_hs m_with_i ghc_flags export_funcs root_syms ->
      Task
        { target = t
        , input = i
        , outputWasm = fromMaybe (i -<.> "wasm") m_wasm
-       , outputJS = fromMaybe (i -<.> "js") m_node
+       , outputJS = fromMaybe (i -<.> "js") m_js
+       , outputHTML = fromMaybe (i -<.> "html") m_html
        , outputLinkReport = m_report
        , outputGraphViz = m_gv
        , binaryen = wasm_toolkit
@@ -47,6 +48,11 @@ parseTask =
        (long "output-js" <>
         help
           "Output path of JavaScript, defaults to same path of Main. Must be the same directory as the WebAssembly binary.")) <*>
+  optional
+    (strOption
+       (long "output-html" <>
+        help
+          "Output path of HTML, defaults to same path of Main. Must be the same directory as the WebAssembly binary.")) <*>
   optional
     (strOption
        (long "output-link-report" <> help "Output path of linking report")) <*>

@@ -56,7 +56,7 @@ data Target
 
 data Task = Task
   { target :: Target
-  , input, outputWasm, outputJS :: FilePath
+  , input, outputWasm, outputJS, outputHTML :: FilePath
   , outputLinkReport, outputGraphViz :: Maybe FilePath
   , binaryen, debug, outputIR, run :: Bool
   , heapSize :: Int
@@ -112,6 +112,27 @@ genNode Task {..} LinkReport {..} err_msgs = do
         Browser -> mempty
     , "main();\n"
     ]
+
+genHTML :: Task -> Builder
+genHTML Task {..} =
+  mconcat
+    [ "<!doctype html>\n"
+    , "<html lang=\"en\">\n"
+    , "<head>\n"
+    , "<title>"
+    , string7 (takeBaseName outputWasm)
+    , "</title>\n"
+    , "</head>\n"
+    , "<body>\n"
+    , "<script src="
+    , string7 (show (takeFileName outputJS))
+    , "></script>\n"
+    , "</body>\n"
+    , "</html>\n"
+    ]
+
+builderWriteFile :: FilePath -> Builder -> IO ()
+builderWriteFile p b = withBinaryFile p WriteMode $ \h -> hPutBuilder h b
 
 ahcLinkMain :: Task -> IO ()
 ahcLinkMain task@Task {..} = do
@@ -253,10 +274,11 @@ ahcLinkMain task@Task {..} = do
                "[INFO] Writing WebAssembly binary to " <> show outputWasm
              LBS.writeFile outputWasm $ runPut $ putModule r)
   putStrLn $ "[INFO] Writing JavaScript to " <> show outputJS
-  h <- openBinaryFile outputJS WriteMode
   b <- genNode task report err_msgs
-  hPutBuilder h b
-  hClose h
+  builderWriteFile outputJS b
+  when (target == Browser) $ do
+    putStrLn $ "[INFO] Writing HTML to " <> show outputHTML
+    builderWriteFile outputHTML $ genHTML task
   when (target == Node && run) $ do
     putStrLn $ "[INFO] Running " <> outputJS
     withCurrentDirectory (takeDirectory outputWasm) $
