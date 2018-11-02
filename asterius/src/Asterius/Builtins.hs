@@ -369,6 +369,20 @@ rtsFunctionImports debug =
                   FunctionType
                     {paramTypes = [I32, I32, I32, I32, I32], returnTypes = []}
               }
+          , FunctionImport
+              { internalName = "__asterius_debug_log_is_enabled"
+              , externalModuleName = "rts"
+              , externalBaseName = "__asterius_debug_log_is_enabled"
+              , functionType =
+                  FunctionType {paramTypes = [], returnTypes = [I32]}
+              }
+          , FunctionImport
+              { internalName = "__asterius_debug_log_set_enabled"
+              , externalModuleName = "rts"
+              , externalBaseName = "__asterius_debug_log_set_enabled"
+              , functionType =
+                  FunctionType {paramTypes = [I32], returnTypes = []}
+              }
           ] <>
           concat
             [ [ FunctionImport

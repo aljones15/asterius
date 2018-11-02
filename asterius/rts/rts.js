@@ -1,6 +1,10 @@
 "use strict";
 
 async function newAsteriusInstance(req) {
+  let __asterius_debug_log_enabled = true;
+  function __asterius_debug_log_info(msg) {
+    if (__asterius_debug_log_enabled) console.log("[INFO] " + msg);
+  }
   let __asterius_wasm_instance = null;
   function __asterius_show_I(x) {
     return x.toString(16).padStart(8, "0");
@@ -104,22 +108,23 @@ async function newAsteriusInstance(req) {
         print: console.log,
         panic: e => console.error("[ERROR] " + req.errorMessages[e]),
         __asterius_current_memory: p => {
-          console.log("[INFO] Current Memory Pages: " + p);
+          __asterius_debug_log_info("Current Memory Pages: " + p);
           return p;
         },
+        __asterius_debug_log_is_enabled: () => __asterius_debug_log_enabled,
+        __asterius_debug_log_set_enabled: f => {
+          __asterius_debug_log_enabled = Boolean(f);
+        },
         __asterius_grow_memory: (p0, dp) => {
-          console.log(
-            "[INFO] Previous Memory Pages: " +
-              p0 +
-              ", Allocated Memory Pages: " +
-              dp
+          __asterius_debug_log_info(
+            "Previous Memory Pages: " + p0 + ", Allocated Memory Pages: " + dp
           );
           return p0;
         },
         __asterius_load_i64: (p_lo, p_hi, o, v_lo, v_hi) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Loading i64 at " +
+          __asterius_debug_log_info(
+            "Loading i64 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -129,8 +134,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_store_i64: (p_lo, p_hi, o, v_lo, v_hi) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Storing i64 at " +
+          __asterius_debug_log_info(
+            "Storing i64 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -140,8 +145,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_load_i8: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Loading i8 at " +
+          __asterius_debug_log_info(
+            "Loading i8 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -151,8 +156,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_store_i8: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Storing i8 at " +
+          __asterius_debug_log_info(
+            "Storing i8 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -162,8 +167,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_load_i16: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Loading i16 at " +
+          __asterius_debug_log_info(
+            "Loading i16 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -173,8 +178,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_store_i16: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Storing i16 at " +
+          __asterius_debug_log_info(
+            "Storing i16 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -184,8 +189,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_load_i32: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Loading i32 at " +
+          __asterius_debug_log_info(
+            "Loading i32 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -195,8 +200,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_store_i32: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Storing i32 at " +
+          __asterius_debug_log_info(
+            "Storing i32 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -206,8 +211,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_load_f32: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Loading f32 at " +
+          __asterius_debug_log_info(
+            "Loading f32 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -217,8 +222,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_store_f32: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Storing f32 at " +
+          __asterius_debug_log_info(
+            "Storing f32 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -228,8 +233,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_load_f64: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Loading f64 at " +
+          __asterius_debug_log_info(
+            "Loading f64 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -239,8 +244,8 @@ async function newAsteriusInstance(req) {
         },
         __asterius_store_f64: (p_lo, p_hi, o, v) => {
           __asterius_memory_trap(p_lo, p_hi);
-          console.log(
-            "[INFO] Storing f64 at " +
+          __asterius_debug_log_info(
+            "Storing f64 at " +
               __asterius_show_I64_with_sym(p_lo, p_hi) +
               "+" +
               o +
@@ -249,8 +254,8 @@ async function newAsteriusInstance(req) {
           );
         },
         __asterius_traceCmm: f =>
-          console.log(
-            "[INFO] Entering " +
+          __asterius_debug_log_info(
+            "Entering " +
               __asterius_show_func_sym(f) +
               ", Sp: 0x" +
               __asterius_show_I(
@@ -270,8 +275,8 @@ async function newAsteriusInstance(req) {
               )
           ),
         __asterius_traceCmmBlock: (f, lbl) =>
-          console.log(
-            "[INFO] Branching to " +
+          __asterius_debug_log_info(
+            "Branching to " +
               __asterius_show_func_sym(f) +
               " basic block " +
               lbl +
@@ -293,8 +298,8 @@ async function newAsteriusInstance(req) {
               )
           ),
         __asterius_traceCmmSetLocal: (f, i, lo, hi) =>
-          console.log(
-            "[INFO] In " +
+          __asterius_debug_log_info(
+            "In " +
               __asterius_show_func_sym(f) +
               ", Setting local register " +
               i +
