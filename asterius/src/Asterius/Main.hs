@@ -84,9 +84,7 @@ genNode Task {..} LinkReport {..} err_msgs = do
     [ byteString rts_buf
     , "let __asterius_instance = null;\n"
     , "async function main() {\n"
-    , "const i = await newAsteriusInstance({functionSymbols: "
-    , string7 $ show $ map fst $ sortOn snd $ M.toList functionSymbolMap
-    , ", errorMessages: ["
+    , "const i = await newAsteriusInstance({errorMessages: ["
     , mconcat (intersperse "," [string7 $ show msg | msg <- err_msgs])
     , "], bufferSource: "
     ] <>

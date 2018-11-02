@@ -2,7 +2,6 @@
 
 async function newAsteriusInstance(req) {
   let __asterius_wasm_instance = null;
-  const __asterius_func_syms = req.functionSymbols;
   function __asterius_show_I(x) {
     return x.toString(16).padStart(8, "0");
   }
@@ -25,6 +24,9 @@ async function newAsteriusInstance(req) {
     __asterius_function_lookup_table = __asterius_make_symbol_lookup_table(
       req.functionSymbolMap
     );
+  function __asterius_show_func_sym(x) {
+    return __asterius_function_lookup_table[x & 0xffffffff];
+  }
   function __asterius_show_I64_with_sym(lo, hi) {
     switch (hi) {
       case 2097143:
@@ -242,7 +244,7 @@ async function newAsteriusInstance(req) {
         __asterius_traceCmm: f =>
           console.log(
             "[INFO] Entering " +
-              __asterius_func_syms[f - 1] +
+              __asterius_show_func_sym(f) +
               ", Sp: 0x" +
               __asterius_show_I(
                 __asterius_wasm_instance.exports.__asterius_Load_Sp()
@@ -263,34 +265,30 @@ async function newAsteriusInstance(req) {
         __asterius_traceCmmBlock: (f, lbl) =>
           console.log(
             "[INFO] Branching to " +
-              __asterius_func_syms[f - 1] +
+              __asterius_show_func_sym(f) +
               " basic block " +
               lbl +
               ", Sp: 0x" +
-              __asterius_wasm_instance.exports
-                .__asterius_Load_Sp()
-                .toString(16)
-                .padStart(8, "0") +
+              __asterius_show_I(
+                __asterius_wasm_instance.exports.__asterius_Load_Sp()
+              ) +
               ", SpLim: 0x" +
-              __asterius_wasm_instance.exports
-                .__asterius_Load_SpLim()
-                .toString(16)
-                .padStart(8, "0") +
+              __asterius_show_I(
+                __asterius_wasm_instance.exports.__asterius_Load_SpLim()
+              ) +
               ", Hp: 0x" +
-              __asterius_wasm_instance.exports
-                .__asterius_Load_Hp()
-                .toString(16)
-                .padStart(8, "0") +
+              __asterius_show_I(
+                __asterius_wasm_instance.exports.__asterius_Load_Hp()
+              ) +
               ", HpLim: 0x" +
-              __asterius_wasm_instance.exports
-                .__asterius_Load_HpLim()
-                .toString(16)
-                .padStart(8, "0")
+              __asterius_show_I(
+                __asterius_wasm_instance.exports.__asterius_Load_HpLim()
+              )
           ),
         __asterius_traceCmmSetLocal: (f, i, lo, hi) =>
           console.log(
             "[INFO] In " +
-              __asterius_func_syms[f - 1] +
+              __asterius_show_func_sym(f) +
               ", Setting local register " +
               i +
               " to " +

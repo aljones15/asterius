@@ -322,14 +322,14 @@ rtsFunctionImports debug =
               , externalModuleName = "rts"
               , externalBaseName = "__asterius_traceCmm"
               , functionType =
-                  FunctionType {paramTypes = [I32], returnTypes = []}
+                  FunctionType {paramTypes = [F64], returnTypes = []}
               }
           , FunctionImport
               { internalName = "__asterius_traceCmmBlock"
               , externalModuleName = "rts"
               , externalBaseName = "__asterius_traceCmmBlock"
               , functionType =
-                  FunctionType {paramTypes = [I32, I32], returnTypes = []}
+                  FunctionType {paramTypes = [F64, I32], returnTypes = []}
               }
           , FunctionImport
               { internalName = "__asterius_traceCmmSetLocal"
@@ -337,7 +337,7 @@ rtsFunctionImports debug =
               , externalBaseName = "__asterius_traceCmmSetLocal"
               , functionType =
                   FunctionType
-                    {paramTypes = [I32, I32, I32, I32], returnTypes = []}
+                    {paramTypes = [F64, I32, I32, I32], returnTypes = []}
               }
           , FunctionImport
               { internalName = "__asterius_current_memory"
