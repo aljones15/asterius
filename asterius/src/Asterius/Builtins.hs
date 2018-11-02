@@ -216,10 +216,10 @@ rtsAsteriusModule opts =
         , ("print_i64", printI64Function opts)
         , ("print_f32", printF32Function opts)
         , ("print_f64", printF64Function opts)
-        , ("__asterius_Load_Sp", getI32GlobalRegFunction opts Sp)
-        , ("__asterius_Load_SpLim", getI32GlobalRegFunction opts SpLim)
-        , ("__asterius_Load_Hp", getI32GlobalRegFunction opts Hp)
-        , ("__asterius_Load_HpLim", getI32GlobalRegFunction opts HpLim)
+        , ("__asterius_Load_Sp", getF64GlobalRegFunction opts Sp)
+        , ("__asterius_Load_SpLim", getF64GlobalRegFunction opts SpLim)
+        , ("__asterius_Load_Hp", getF64GlobalRegFunction opts Hp)
+        , ("__asterius_Load_HpLim", getF64GlobalRegFunction opts HpLim)
         , ("__asterius_Load_I8", loadWrapperFunction opts 1 I32)
         , ("__asterius_Load_I16", loadWrapperFunction opts 2 I32)
         , ("__asterius_Load_I32", loadWrapperFunction opts 4 I32)
@@ -1337,12 +1337,12 @@ printF64Function _ =
     x <- param F64
     callImport "printF64" [x]
 
-getI32GlobalRegFunction ::
+getF64GlobalRegFunction ::
      BuiltinsOptions -> UnresolvedGlobalReg -> AsteriusFunction
-getI32GlobalRegFunction _ gr =
-  runEDSL [I32] $ do
-    setReturnTypes [I32]
-    emit $ wrapInt64 $ getLVal $ global gr
+getF64GlobalRegFunction _ gr =
+  runEDSL [F64] $ do
+    setReturnTypes [F64]
+    emit $ Unary ConvertUInt64ToFloat64 $ getLVal $ global gr
 
 loadWrapperFunction, storeWrapperFunction ::
      BuiltinsOptions -> BinaryenIndex -> ValueType -> AsteriusFunction
