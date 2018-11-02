@@ -1,11 +1,11 @@
 module Asterius.Internals.MagicNumber
-  ( staticsTag
+  ( dataTag
   , functionTag
   ) where
 
 import Data.Int
 
-staticsTag, functionTag :: Int64
-staticsTag = 2097143
+dataTag, functionTag :: Int64
+dataTag = 2097143
 
 functionTag = 2097133

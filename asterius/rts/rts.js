@@ -61,7 +61,14 @@ async function newAsteriusInstance(req) {
   function __asterius_freeStablePtr(sp) {
     delete __asterius_SPT[sp];
   }
-  function __asterius_memory_trap(p_lo, p_hi) {}
+  function __asterius_memory_trap(p_lo, p_hi) {
+    if (p_hi !== 2097143) {
+      throw new WebAssembly.RuntimeError(
+        "[ERROR] Memory trap caught invalid memory access at " +
+          __asterius_show_I64(p_lo, p_hi)
+      );
+    }
+  }
   const importObject = Object.assign(
     req.jsffiFactory({
       JSRefs: __asterius_jsffi_JSRefs,

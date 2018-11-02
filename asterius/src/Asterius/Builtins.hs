@@ -1139,7 +1139,7 @@ allocGroupOnNodeFunction _ =
     initGroup bd
     emit bd
 
-getMBlocksFunction BuiltinsOptions {..} =
+getMBlocksFunction _ =
   runEDSL [I64] $ do
     setReturnTypes [I64]
     n <- param I32
@@ -1148,10 +1148,7 @@ getMBlocksFunction BuiltinsOptions {..} =
       extendUInt32 $
       growMemory (n `mulInt32` constI32 (mblock_size `div` wasmPageSize)) `mulInt32`
       constI32 wasmPageSize
-    emit $
-      if tracing
-        then ConstI64 (staticsTag `shiftL` 32) `orInt64` ret
-        else ret
+    emit $ ConstI64 (dataTag `shiftL` 32) `orInt64` ret
 
 mblockGroupBlocks :: Expression -> Expression
 mblockGroupBlocks n =
