@@ -271,19 +271,19 @@ rtsFunctionImports debug =
       { internalName = "__asterius_newStablePtr"
       , externalModuleName = "rts"
       , externalBaseName = "newStablePtr"
-      , functionType = FunctionType {paramTypes = [I32], returnTypes = [I32]}
+      , functionType = FunctionType {paramTypes = [F64], returnTypes = [F64]}
       }
   , FunctionImport
       { internalName = "__asterius_deRefStablePtr"
       , externalModuleName = "rts"
       , externalBaseName = "deRefStablePtr"
-      , functionType = FunctionType {paramTypes = [I32], returnTypes = [I32]}
+      , functionType = FunctionType {paramTypes = [F64], returnTypes = [F64]}
       }
   , FunctionImport
       { internalName = "__asterius_freeStablePtr"
       , externalModuleName = "rts"
       , externalBaseName = "freeStablePtr"
-      , functionType = FunctionType {paramTypes = [I32], returnTypes = []}
+      , functionType = FunctionType {paramTypes = [F64], returnTypes = []}
       }
   , FunctionImport
       { internalName = "printI64"
@@ -1227,20 +1227,28 @@ getStablePtrWrapperFunction _ =
   runEDSL [I64] $ do
     setReturnTypes [I64]
     obj64 <- param I64
-    sp32 <- callImport' "__asterius_newStablePtr" [wrapI64 obj64] I32
-    emit $ extendUInt32 sp32
+    sp_f64 <-
+      callImport'
+        "__asterius_newStablePtr"
+        [Unary ConvertUInt64ToFloat64 obj64]
+        F64
+    emit $ Unary TruncUFloat64ToInt64 sp_f64
 
 deRefStablePtrWrapperFunction _ =
   runEDSL [I64] $ do
     setReturnTypes [I64]
     sp64 <- param I64
-    obj32 <- callImport' "__asterius_deRefStablePtr" [wrapI64 sp64] I32
-    emit $ extendUInt32 obj32
+    obj_f64 <-
+      callImport'
+        "__asterius_deRefStablePtr"
+        [Unary ConvertUInt64ToFloat64 sp64]
+        F64
+    emit $ Unary TruncUFloat64ToInt64 obj_f64
 
 freeStablePtrWrapperFunction _ =
   runEDSL [] $ do
     sp64 <- param I64
-    callImport "__asterius_freeStablePtr" [wrapI64 sp64]
+    callImport "__asterius_freeStablePtr" [Unary ConvertUInt64ToFloat64 sp64]
 
 rtsMkHelper :: BuiltinsOptions -> AsteriusEntitySymbol -> AsteriusFunction
 rtsMkHelper _ con_sym =
