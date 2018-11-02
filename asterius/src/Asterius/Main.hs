@@ -58,7 +58,7 @@ data Task = Task
   { target :: Target
   , input, outputWasm, outputJS :: FilePath
   , outputLinkReport, outputGraphViz :: Maybe FilePath
-  , binaryen, debug, optimize, outputIR, run :: Bool
+  , binaryen, debug, outputIR, run :: Bool
   , heapSize :: Int
   , asteriusInstanceCallback :: String
   , extraGHCFlags :: [String]
@@ -90,7 +90,7 @@ genNode Task {..} LinkReport {..} err_msgs = do
     ] <>
     (case target of
        Node ->
-         [ "await require(\"fs\").promises.readFile("
+         [ "require(\"fs\").readFileSync("
          , string7 $ show $ takeFileName outputWasm
          , ")"
          ]
@@ -260,5 +260,4 @@ ahcLinkMain task@Task {..} = do
   when (target == Node && run) $ do
     putStrLn $ "[INFO] Running " <> outputJS
     withCurrentDirectory (takeDirectory outputWasm) $
-      callProcess "node" $
-      ["--wasm-opt" | optimize] <> ["--harmony-bigint", takeFileName outputJS]
+      callProcess "node" [takeFileName outputJS]

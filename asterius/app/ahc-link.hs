@@ -8,7 +8,7 @@ import System.FilePath
 
 parseTask :: Parser Task
 parseTask =
-  (\t i m_wasm m_node m_report m_gv wasm_toolkit dbg opt ir r m_hs m_with_i ghc_flags export_funcs root_syms ->
+  (\t i m_wasm m_node m_report m_gv wasm_toolkit dbg ir r m_hs m_with_i ghc_flags export_funcs root_syms ->
      Task
        { target = t
        , input = i
@@ -18,7 +18,6 @@ parseTask =
        , outputGraphViz = m_gv
        , binaryen = wasm_toolkit
        , debug = dbg
-       , optimize = opt && not dbg
        , outputIR = ir || dbg
        , run = r
        , heapSize = maybe 1024 read m_hs
@@ -57,7 +56,6 @@ parseTask =
         help "Output path of GraphViz file of symbol dependencies")) <*>
   switch (long "binaryen" <> help "Use the binaryen backend") <*>
   switch (long "debug" <> help "Enable debug mode in the runtime") <*>
-  switch (long "optimize" <> help "Enable V8 optimization") <*>
   switch (long "output-ir" <> help "Output Asterius IR of compiled modules") <*>
   switch (long "run" <> help "Run the compiled module with Node.js") <*>
   optional
