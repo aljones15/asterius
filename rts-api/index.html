@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="../img/favicon.ico">
+  <title>Invoking RTS API in JavaScript - Asterius</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../css/highlight.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "Invoking RTS API in JavaScript";
+    var mkdocs_page_input_path = "rts-api.md";
+    var mkdocs_page_url = "/rts-api/";
+  </script>
+  
+  <script src="../js/jquery-2.1.1.min.js"></script>
+  <script src="../js/modernizr-2.8.3.min.js"></script>
+  <script type="text/javascript" src="../js/highlight.pack.js"></script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href=".." class="icon icon-home"> Asterius</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="..">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../building/">Building guide</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../ahc-link/">Using ahc-link</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../jsffi/">JavaScript FFI</a>
+	    </li>
+          
+            <li class="toctree-l1 current">
+		
+    <a class="current" href="./">Invoking RTS API in JavaScript</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l2"><a href="#invoking-rts-api-in-javascript">Invoking RTS API in JavaScript</a></li>
+    
+
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../ir/">IR types and transformation passes</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../debugging/">The runtime debugging feature</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../architecture/">Project architecture</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../wasm-in-hs/">Writing WebAssembly code in Haskell</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../webassembly/">WebAssembly as a Haskell compilation target</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../custom-ghc/">About the custom GHC fork</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../readings/">Reading list</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../checklist/">Checklist</a>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="..">Asterius</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="..">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>Invoking RTS API in JavaScript</li>
+    <li class="wy-breadcrumbs-aside">
+      
+        <a href="https://github.com/tweag/asterius/edit/master/docs/rts-api.md"
+          class="icon icon-github"> Edit on GitHub</a>
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h2 id="invoking-rts-api-in-javascript">Invoking RTS API in JavaScript</h2>
+<p>For the brave souls who prefer to play with raw pointers instead of syntactic sugar, it's possible to invoke RTS API directly in JavaScript. This grants us the ability to:</p>
+<ul>
+<li>Allocate memory, create and inspect Haskell closures on the heap.</li>
+<li>Trigger Haskell evaluation, then retrieve the results back into JavaScript.</li>
+<li>Use raw Cmm symbols to summon any function, not limited to the "foreign exported" ones.</li>
+</ul>
+<p>Here is a simple example. Suppose we have a <code>Main.fact</code> function:</p>
+<pre><code class="Haskell">fact :: Int -&gt; Int
+fact 0 = 1
+fact n = n * fact (n - 1)
+</code></pre>
+
+<p>The first step is ensuring <code>fact</code> is actually contained in the final WebAssembly binary produced by <code>ahc-link</code>. <code>ahc-link</code> performs aggressive dead-code elimination (or more precisely, live-code discovery) by starting from a set of "root symbols" (usually <code>Main_main_closure</code> which corresponds to <code>Main.main</code>), repeatedly traversing ASTs and including any discovered symbols. So if <code>Main.main</code> does not have a transitive dependency on <code>fact</code>, <code>fact</code> won't be included into the binary. In order to include <code>fact</code>, either use it in some way in <code>main</code>, or supply <code>--extra-root-symbol=Main_fact_closure</code> flag to <code>ahc-link</code> when compiling.</p>
+<p>The next step is locating the pointer of <code>fact</code>. The "asterius instance" type we mentioned before contains two "symbol map" fields: <code>staticsSymbolMap</code> maps static data symbols to linear memory absolute addresses, and <code>functionSymbolMap</code> maps function symbols to WebAssembly function table indices. In this case, we can use <code>i.staticsSymbolMap.Main_fact_closure</code> as the pointer value of <code>Main_fact_closure</code>. For a Haskell top-level function, there're also pointers to the info table/entry function, but we don't need those two in this example.</p>
+<p>Since we'd like to call <code>fact</code>, we need to apply it to an argument, build a thunk representing the result, then evaluate the thunk to WHNF and retrieve the result. Assuming we're passing <code>--asterius-instance-callback=i=&gt;{ ... }</code> to <code>ahc-link</code>, in the callback body, we can use RTS API like this:</p>
+<pre><code class="JavaScript">i.wasmInstance.exports.hs_init();
+const cap = i.staticsSymbolMap.MainCapability;
+const argument = i.wasmInstance.exports.rts_mkInt(cap, 5);
+const thunk = i.wasmInstance.exports.rts_apply(cap, i.staticsSymbolMap.Main_fact_closure, argument);
+const ret = i.wasmInstance.exports.allocate(cap, 1);
+i.wasmInstance.exports.rts_eval(cap, thunk, ret);
+console.log(i.wasmInstance.exports.rts_getInt(i.wasmInstance.exports.loadI64(ret)));
+</code></pre>
+
+<p>A line-by-line explanation follows:</p>
+<ul>
+<li>As usual, the first step is calling <code>hs_init</code> to initialize the runtime.</li>
+<li>Most RTS API functions requires passing a <code>Capability</code> as the first argument, which can be thought as a single processor core for the virtual machine executing Haskell code. Since asterius only has a non-threaded runtime at the moment, we can simply use <code>MainCapability</code> as the pointer to the unique global <code>Capability</code>.</li>
+<li>Assuming we'd like to calculate <code>fact 5</code>, we need to build an <code>Int</code> object which value is <code>5</code>. We can't directly pass the JavaScript <code>5</code>, instead we should call <code>rts_mkInt</code>, which properly allocates a heap object and sets up the info pointer of an <code>Int</code> value. When we need to pass a value of basic type (e.g. <code>Int</code>, <code>StablePtr</code>, etc), we should always call <code>rts_mk*</code> and use the returned pointers to the allocated heap object.</li>
+<li>Then we can apply <code>fact</code> to <code>5</code> by using <code>rts_apply</code>. It builds a thunk without triggering evaluation. If we are dealing with a curried multiple-arguments function, we should chain <code>rts_apply</code> repeatedly until we get a thunk representing the final result.</li>
+<li>Before triggering evaluation, we need to allocate one single word, which serves as the "result pointer". All the <code>rts_eval*</code> functions expect a "result pointer", and upon successful evaluation, the result (which is yet another heap object)'s pointer will be written to the place pointed by the "result pointer". If we don't care about the result (e.g. <code>IO ()</code>), it's okay to pass <code>0</code> there.</li>
+<li>Finally, we call <code>rts_eval</code>, which enters the runtime and perform all the evaluation for us. There are different types of evaluation functions:</li>
+<li><code>rts_eval</code> evaluates a thunk of type <code>a</code> to WHNF.</li>
+<li><code>rts_evalIO</code> evaluates the result of <code>IO a</code> to WHNF.</li>
+<li><code>rts_evalLazyIO</code> evaluates <code>IO a</code>, without forcing the result to WHNF. It is also the default evaluator used by the runtime to run <code>Main.main</code>.</li>
+<li><code>rts_evalStableIO</code> evaluates the result of <code>StablePtr (IO a)</code> to WHNF, then return the result as <code>StablePtr a</code>.</li>
+<li>If we need to retrieve the result back to JavaScript, we must pick an evaluator function which forces the result to WHNF. The <code>rts_get*</code> functions assume the objects are evaluated and won't trigger evaluation.</li>
+<li>Finally, we use <code>loadI64</code> to retrieve the <code>Int</code> object stored in the space pointed by <code>ret</code>, then use <code>rts_getInt</code> to retrieve the content of that <code>Int</code>. The result is the integer value we expect.</li>
+</ul>
+<p>Most users probably don't need to use RTS API manually, since the <code>foreign import</code>/<code>export</code> syntactic sugar and the <code>makeHaskellCallback</code> interface should be sufficient for typical use cases of Haskell/JavaScript interaction. Though it won't hurt to know what is hidden beneath the syntactic sugar, <code>foreign import</code>/<code>export</code> is implemented by automatically generating stub WebAssembly functions which calls RTS API for you.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../ir/" class="btn btn-neutral float-right" title="IR types and transformation passes">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="../jsffi/" class="btn btn-neutral" title="JavaScript FFI"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+	  
+        </div>
+      </div>
+
+    </section>
+    
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+          <a href="https://github.com/tweag/asterius" class="fa fa-github" style="float: left; color: #fcfcfc"> GitHub</a>
+      
+      
+        <span><a href="../jsffi/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="../ir/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script src="../js/theme.js"></script>
+
+</body>
+</html>
